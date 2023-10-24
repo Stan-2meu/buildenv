@@ -34,6 +34,7 @@ const optionFile = readJSON(findup("buildenv.config.json"));
 const defaultOptions = readJSON(path.join(__dirname, "defaultOptions.json"));
 const optionKeys = [
   "ENV_NAME",
+  "ENV_ORDER",
   "publicFileName",
   "privateFileName",
   "publicFileDirPath",
@@ -46,6 +47,8 @@ const optionKeys = [
   "prodEnvs",
   "initIgnorePrefix",
   "overrideSuffix",
+  "envIgnore",
+  "speakOnEnvIgnore",
 ];
 if (optionFile) {
   Object.keys(optionFile).forEach((key) => {
@@ -72,6 +75,7 @@ const options = optionKeys.reduce((acc, key) => {
 
 const {
   ENV_NAME,
+  ENV_ORDER,
   publicFileName,
   privateFileName,
   publicFileDirPath,
@@ -84,6 +88,8 @@ const {
   prodEnvs,
   initIgnorePrefix,
   overrideSuffix,
+  envIgnore,
+  speakOnEnvIgnore
 } = options;
 
 const publicFilePath = path.join(publicFileDirPath, publicFileName + ".ts");
@@ -141,9 +147,9 @@ function parseEnv() {
     .split("\n")
     .map((line) => line.trim())
     .filter((line, i, trimmedLines) => {
-      const ignored = trimmedLines.at(i - 1)?.includes("@env-ignore");
-      if (ignored) {
-        console.log("  - @env-ignore에 의해 무시됨 : ", line);
+      const ignored = trimmedLines.at(i - 1)?.includes(envIgnore);
+      if (ignored && speakOnEnvIgnore) {
+        console.log(`  - ${envIgnore}에 의해 무시됨 : `, line);
       }
       return !ignored;
     })
@@ -258,10 +264,7 @@ function buildFileFromMeta(meta, className, parentClassName = null) {
     // ENV Area
 
     static ${ENV_NAME} =
-      (process.env.NEXT_PUBLIC_2MEU_ENV ??
-      process.env.NEXT_PUBLIC_ENVIRONMENT ??
-      process.env.NEXT_PUBLIC_VERCEL_ENV ??
-      process.env.NODE_ENV) as string;
+      (${ENV_ORDER.map(key=>`process.env.${key}`).join(" ?? " )}) as string;
 
     static IS_DEV = ([${devEnvs
       .map((word) => `"${word}"`)
@@ -345,7 +348,7 @@ function buildInitMethod(keys, className) {
     return;
   }
   if (!(${className}.IS_DEV || ${className}.IS_PROD || ${className}.IS_QA)) {
-    throw new Error("Invalid NODE_ENV: " + ${className}.DST_ENV);
+    throw new Error("Invalid NODE_ENV: " + ${className}.${ENV_NAME});
   }
 
   const variables = {
