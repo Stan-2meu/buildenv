@@ -1,0 +1,15 @@
+{
+  "ENV_NAME": "DST_ENV",
+  "publicFileName" : "ENV_PUBLIC",
+  "privateFileName" : "ENV_SERVER",
+  "publicFileDirPath": "./scripts/client",
+  "publicImportDirPath": "../client",
+  "privateFileDirPath": "./scripts/server",
+  "lookupsInOrder": [".env.local", ".env"],
+  "createDirIfNotExist": true,
+  "devEnvs" : ["development", "dev", "d"],
+  "qaEnvs" : ["preview", "test", "qa"],
+  "prodEnvs" : ["prod", "production", "p"],
+  "initIgnorePrefix" : "NULLABLE_",
+  "overrideSuffix" : "_OVERRIDE"
+}
