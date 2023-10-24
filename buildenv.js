@@ -49,6 +49,8 @@ const optionKeys = [
   "overrideSuffix",
   "envIgnore",
   "speakOnEnvIgnore",
+  "envIgnoreStart",
+  "envIgnoreEnd",
 ];
 if (optionFile) {
   Object.keys(optionFile).forEach((key) => {
@@ -89,7 +91,9 @@ const {
   initIgnorePrefix,
   overrideSuffix,
   envIgnore,
-  speakOnEnvIgnore
+  envIgnoreStart,
+  envIgnoreEnd,
+  speakOnEnvIgnore,
 } = options;
 
 const publicFilePath = path.join(publicFileDirPath, publicFileName + ".ts");
@@ -143,9 +147,37 @@ console.log(`>> [3] - ${privateFilePath}`);
 // Function area
 
 function parseEnv() {
-  const lines = envfile
+  let minimal = envfile
     .split("\n")
     .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+
+  const multilineFilter = (input) => {
+    const startIdx = input.findIndex((line) => line.includes(envIgnoreStart));
+    const endIdx = input.findIndex((line) => line.includes(envIgnoreEnd));
+    if (startIdx !== -1 && endIdx !== -1 && startIdx < endIdx) {
+      if (speakOnEnvIgnore) {
+        console.log(
+          `  - ${envIgnoreStart} ~ ${envIgnoreEnd}에 의해 무시됨 : `,
+          input.slice(startIdx, endIdx + 1)
+        );
+      }
+      return input.slice(0, startIdx).concat(input.slice(endIdx + 1));
+    }
+    return null;
+  };
+  while (true) {
+    const filtered = multilineFilter(minimal);
+    if (!filtered) {
+      break;
+    }
+    minimal = filtered;
+  }
+
+  const lines = minimal
+    .filter(
+      (line) => !line.includes(envIgnoreStart) && !line.includes(envIgnoreEnd)
+    )
     .filter((line, i, trimmedLines) => {
       const ignored = trimmedLines.at(i - 1)?.includes(envIgnore);
       if (ignored && speakOnEnvIgnore) {
@@ -153,15 +185,19 @@ function parseEnv() {
       }
       return !ignored;
     })
-    .filter((line) => line.length > 0)
     .filter((line) => !line.startsWith("#"))
     .filter((line) => !line.startsWith("_"))
     .filter((line) => !line.startsWith("@"))
     .filter((line) => line.includes("="))
+    .filter((line) => line.split("=").length > 1)
     .reduce(
       (obj, line) => ({
         ...obj,
-        [line.split("=")[0].trim().toUpperCase()]: line.split("=")[1].trim(),
+        [line.split("=")[0].trim().toUpperCase()]: line
+          .split("=")
+          .slice(1)
+          .join("")
+          .trim(),
       }),
       {}
     );
@@ -248,59 +284,49 @@ function buildFileFromMeta(meta, className, parentClassName = null) {
 
   const classEnv = `${className}.${ENV_NAME}`;
   let fileTemplate = `
-  /* DO NOT EDIT! THIS IS AUTO-GENERATED FILE */
+/* DO NOT EDIT! THIS IS AUTO-GENERATED FILE */
+${
+  parentClassName
+    ? `import ${parentClassName} from "${publicImportPath}"`
+    : ""
+}
+export default class ${className}${
+  parentClassName ? ` extends ${parentClassName}` : ""
+} {
   ${
     parentClassName
-      ? `import ${parentClassName} from "${publicImportPath}"`
-      : ""
+      ? ""
+      : `////////////////////////////////////////////////////////////////////////
+  // ENV Area
+  static ${ENV_NAME} =
+    (${ENV_ORDER.map((key) => `process.env.${key}`).join(" ?? \n\t\t\t")}) as string;
+  static IS_DEV = ([${devEnvs
+    .map((word) => `"${word}"`)
+    .join(",")}].includes(\n\t\t\t\t\t${classEnv}?.toLowerCase())) as boolean;
+  static IS_QA = ([${qaEnvs
+    .map((word) => `"${word}"`)
+    .join(",")}].includes(\n\t\t\t\t\t${classEnv}?.toLowerCase())) as boolean;
+  static IS_PROD = ([${prodEnvs
+    .map((word) => `"${word}"`)
+    .join(",")}].includes(\n\t\t\t\t\t${classEnv}?.toLowerCase())) as boolean;\n
+  static IS_DEV_OR_QA = ${className}.IS_DEV || ${className}.IS_QA as boolean;`
   }
-  export default class ${className}${
-    parentClassName ? ` extends ${parentClassName}` : ""
-  } {
-    ${
-      parentClassName
-        ? ""
-        : `////////////////////////////////////////////////////////////////////////
-    // ENV Area
-
-    static ${ENV_NAME} =
-      (${ENV_ORDER.map(key=>`process.env.${key}`).join(" ?? " )}) as string;
-
-    static IS_DEV = ([${devEnvs
-      .map((word) => `"${word}"`)
-      .join(",")}].includes(${classEnv}?.toLowerCase())) as boolean;
-    static IS_QA = ([${qaEnvs
-      .map((word) => `"${word}"`)
-      .join(",")}].includes(${classEnv}?.toLowerCase())) as boolean;
-    static IS_PROD = ([${prodEnvs
-      .map((word) => `"${word}"`)
-      .join(",")}].includes  (${classEnv}?.toLowerCase())) as boolean;
-    static IS_DEV_OR_QA = ${className}.IS_DEV || ${className}.IS_QA as boolean;`
-    }
-    
-    ////////////////////////////////////////////////////////////////////////
-    // Common Area
-
-    ${commonVariableArea}
-
-    ////////////////////////////////////////////////////////////////////////
-    // Forked Area
-
-    ${forkedVariableArea}
-
-    ////////////////////////////////////////////////////////////////////////
-    // Init Area
-
-    ${is_init}
-
-    static ${init_method_name} = () => {
-      ${parentClassName ? `${className}.${parent_init_method_name}();` : ""}
-      ${initMethodArea}
-    }
-
+  ////////////////////////////////////////////////////////////////////////
+  // Common Area
+  ${commonVariableArea}
+  ////////////////////////////////////////////////////////////////////////
+  // Forked Area
+  ${forkedVariableArea}
+  ////////////////////////////////////////////////////////////////////////
+  // Init Area
+  ${is_init}
+  static ${init_method_name} = () => {
+    ${parentClassName ? `${className}.${parent_init_method_name}();` : ""}
+    ${initMethodArea}
   }
-  ${className}.${init_method_name}();
-  `;
+}
+${className}.${init_method_name}();
+`;
 
   const { overrides, commons, forkedKeys } = meta;
 
@@ -323,51 +349,51 @@ function buildForkedVariables(keys, className) {
   return keys
     .map((key) => {
       return `static ${key} =
-      (process.env.${key}${overrideSuffix} ?? (
-        (${className}.IS_DEV ) ? process.env.${key}_DEV :
-        (${className}.IS_QA  ) ? process.env.${key}_QA :
-        (${className}.IS_PROD) ? process.env.${key}_PROD :
-        null
-      )) as string;\n`;
+    (process.env.${key}${overrideSuffix} ?? (
+      (${className}.IS_DEV ) ? process.env.${key}_DEV :
+      (${className}.IS_QA  ) ? process.env.${key}_QA :
+      (${className}.IS_PROD) ? process.env.${key}_PROD :
+      null
+    )) as string;\n`;
     })
-    .join("\n");
+    .join("\n\t\t");
 }
 
 function buildCommonVariables(forked) {
   return forked
     .map((key) => {
-      return `static ${key} =  (process.env.${key}${overrideSuffix} ?? process.env.${key}) as string;`;
+      return `\n\tstatic ${key} = \n\t\t\t\t\t\t(process.env.${key}${overrideSuffix} ??\n\t\t\t\t\t\tprocess.env.${key}) as string;`;
     })
-    .join("\n");
+    .join("\n\t\t");
 }
 
 function buildInitMethod(keys, className) {
   const is_init = `${className}.is_${className}_init`;
   return `
-  if (${is_init}) {
-    return;
-  }
-  if (!(${className}.IS_DEV || ${className}.IS_PROD || ${className}.IS_QA)) {
-    throw new Error("Invalid NODE_ENV: " + ${className}.${ENV_NAME});
-  }
-
-  const variables = {
-    IS_DEV: ${className}.IS_DEV,
-    IS_PROD: ${className}.IS_PROD,
-    IS_QA: ${className}.IS_QA,
-    IS_DEV_OR_QA: ${className}.IS_DEV_OR_QA,
-    ${keys.map((key) => `${key} : ${className}.${key}`).join(",\n")}
-  };
-  const isNullish = (val: string) =>
-    val === undefined ||
-    val === null ||
-    val?.length === 0;
-
-  const missing = Object.keys(variables).filter((key) => isNullish(variables[key])).filter((key) => !key.toLowerCase().startsWith("${initIgnorePrefix.toLowerCase()}"));
-
-  if (missing.length > 0) {
-    throw new Error(".env.local에 환경변수를 추가해주세요 : " + missing.join(", "));
-  }
-  ${is_init} = true;
+      if (${is_init}) {
+        return;
+      }
+      if (!(${className}.IS_DEV || ${className}.IS_PROD || ${className}.IS_QA)) {
+        throw new Error("Invalid NODE_ENV: " + ${className}.${ENV_NAME});
+      }
+    
+      const variables = {
+        IS_DEV: ${className}.IS_DEV,
+        IS_PROD: ${className}.IS_PROD,
+        IS_QA: ${className}.IS_QA,
+        IS_DEV_OR_QA: ${className}.IS_DEV_OR_QA,
+        ${keys.map((key) => `${key} : ${className}.${key}`).join(",\n\t\t\t\t")}
+      };
+      const isNullish = (val: string) =>
+        val === undefined ||
+        val === null ||
+        val?.length === 0;
+    
+      const missing = Object.keys(variables).filter((key) => isNullish(variables[key])).filter((key) => !key.toLowerCase().startsWith("${initIgnorePrefix.toLowerCase()}"));
+    
+      if (missing.length > 0) {
+        throw new Error(".env.local에 환경변수를 추가해주세요 : " + missing.join(", "));
+      }
+      ${is_init} = true;
   `;
 }
