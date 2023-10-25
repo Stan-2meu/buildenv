@@ -35,26 +35,7 @@ console.log({ optionFile });
 const defaultOptions = readJSON(
   path.join(__dirname, "defaultOptions.json")
 )?.buildenv;
-const optionKeys = [
-  "ENV_NAME",
-  "ENV_ORDER",
-  "publicFileName",
-  "privateFileName",
-  "publicFileDirPath",
-  "publicImportDirPath",
-  "privateFileDirPath",
-  "lookupsInOrder",
-  "createDirIfNotExist",
-  "devEnvs",
-  "qaEnvs",
-  "prodEnvs",
-  "initIgnorePrefix",
-  "overrideSuffix",
-  "envIgnore",
-  "speakOnEnvIgnore",
-  "envIgnoreStart",
-  "envIgnoreEnd",
-];
+const optionKeys = Object.keys(defaultOptions);
 if (optionFile) {
   Object.keys(optionFile).forEach((key) => {
     if (!optionKeys.includes(key)) {
@@ -86,7 +67,7 @@ const {
   publicFileDirPath,
   publicImportDirPath,
   privateFileDirPath,
-  lookupsInOrder,
+  searchThrough,
   createDirIfNotExist,
   devEnvs,
   qaEnvs,
@@ -103,7 +84,7 @@ const publicFilePath = path.join(publicFileDirPath, publicFileName + ".ts");
 const privateFilePath = path.join(privateFileDirPath, privateFileName + ".ts");
 const publicImportPath = path.join(publicImportDirPath, publicFileName);
 
-const envfile = lookupsInOrder.reduce((acc, lookup) => {
+const envfile = searchThrough.reduce((acc, lookup) => {
   if (acc) {
     return acc;
   }
@@ -111,7 +92,7 @@ const envfile = lookupsInOrder.reduce((acc, lookup) => {
 }, null);
 if (!envfile) {
   console.error(
-    `환경변수 파일을 찾을 수 없습니다. [ ${lookupsInOrder.join(", ")} ]`
+    `환경변수 파일을 찾을 수 없습니다. [ ${searchThrough.join(", ")} ]`
   );
   process.exit(1);
 }

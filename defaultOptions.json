@@ -12,7 +12,7 @@
     "publicFileDirPath": "./scripts/client",
     "publicImportDirPath": "../client",
     "privateFileDirPath": "./scripts/server",
-    "lookupsInOrder": [".env.local", ".env"],
+    "searchThrough": [".env.local", ".env"],
     "createDirIfNotExist": true,
     "devEnvs": ["development", "dev", "d"],
     "qaEnvs": ["preview", "test", "qa"],
