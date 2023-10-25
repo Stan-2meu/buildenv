@@ -79,7 +79,7 @@ const {
   envIgnoreStart,
   envIgnoreEnd,
   speakOnEnvIgnore,
-  transpileOutDir
+  transpileOutDir,
 } = options;
 
 const publicFilePath = path.join(publicFileDirPath, publicFileName + ".ts");
@@ -382,14 +382,34 @@ function buildInitMethod(keys, className) {
   `;
 }
 
-
 /// /////////////////////////////////////////////////////////////////////
 // Transpile
 
-if(inputArgs.includes("transpile")) {
-  console.log("Trasnpile to JS start")
-  const { execSync } = require("child_process");
-  const sourceFile = `./${privateFilePath}`;
-  execSync(`npx tsc ${sourceFile} --outDir ${transpileOutDir}`);
-  console.log("Trasnpile to JS complete")
+if (inputArgs.includes("transpile")) {
+  console.log("Trasnpile to JS start");
+  const esbuild = require("esbuild");
+
+  esbuild
+    .build({
+      entryPoints: [publicFilePath],
+      bundle: true,
+      platform: "node",
+      target: "node14",
+      outdir: transpileOutDir,
+    })
+    .then(() => {
+      console.log(` - transpiles : [${publicFileName}]`);
+      esbuild
+        .build({
+          entryPoints: [privateFilePath],
+          bundle: true,
+          platform: "node",
+          target: "node14",
+          outdir: transpileOutDir,
+        })
+        .then(() => {
+          console.log(` - transpiles : [${privateFileName}]`);
+          console.log("Transpile to JS complete");
+        });
+    });
 }
