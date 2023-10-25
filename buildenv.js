@@ -31,7 +31,6 @@ const findup = require("findup-sync");
 const readJSON = (path) =>
   path ? JSON.parse(fs.readFileSync(path, "utf-8")) : null;
 const optionFile = readJSON(findup("2dub.config.json"))?.buildenv;
-console.log({ optionFile });
 const defaultOptions = readJSON(
   path.join(__dirname, "defaultOptions.json")
 )?.buildenv;
