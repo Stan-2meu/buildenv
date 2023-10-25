@@ -398,7 +398,9 @@ if (inputArgs.includes("transpile")) {
       outdir: transpileOutDir,
     })
     .then(() => {
-      console.log(` - transpiles : [${publicFileName}]`);
+      console.log(
+        ` - transpiled to : [ ${path.join(transpileOutDir, publicFileName)} ]`
+      );
       esbuild
         .build({
           entryPoints: [privateFilePath],
@@ -408,7 +410,9 @@ if (inputArgs.includes("transpile")) {
           outdir: transpileOutDir,
         })
         .then(() => {
-          console.log(` - transpiles : [${privateFileName}]`);
+          console.log(
+            ` - transpiled to : [ ${path.join(transpileOutDir, privateFileName)} ]`
+          );
           console.log("Transpile to JS complete");
         });
     });
