@@ -1,6 +1,6 @@
 {
   "buildenv": {
-    "ENV_NAME": "DST_ENV",
+    "ENV_NAME": "HOHO",
     "ENV_ORDER": [
       "NEXT_PUBLIC_2MEU_ENV",
       "NEXT_PUBLIC_ENVIRONMENT",

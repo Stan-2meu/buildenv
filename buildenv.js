@@ -30,8 +30,11 @@ const findup = require("findup-sync");
 
 const readJSON = (path) =>
   path ? JSON.parse(fs.readFileSync(path, "utf-8")) : null;
-const optionFile = readJSON(findup("buildenv.config.json"));
-const defaultOptions = readJSON(path.join(__dirname, "defaultOptions.json"));
+const optionFile = readJSON(findup("2dub.config.json"))?.buildenv;
+console.log({ optionFile });
+const defaultOptions = readJSON(
+  path.join(__dirname, "defaultOptions.json")
+)?.buildenv;
 const optionKeys = [
   "ENV_NAME",
   "ENV_ORDER",
@@ -66,7 +69,7 @@ if (optionFile) {
     }
   });
 } else {
-  console.warn(" * buildenv.config.json 없음. 기본값으로 진행");
+  console.warn(" * 2dub.config.json 없음. 기본값으로 진행");
 }
 const options = optionKeys.reduce((acc, key) => {
   if (optionFile?.[key] !== undefined) {
@@ -285,21 +288,19 @@ function buildFileFromMeta(meta, className, parentClassName = null) {
   const classEnv = `${className}.${ENV_NAME}`;
   let fileTemplate = `
 /* DO NOT EDIT! THIS IS AUTO-GENERATED FILE */
-${
-  parentClassName
-    ? `import ${parentClassName} from "${publicImportPath}"`
-    : ""
-}
+${parentClassName ? `import ${parentClassName} from "${publicImportPath}"` : ""}
 export default class ${className}${
-  parentClassName ? ` extends ${parentClassName}` : ""
-} {
+    parentClassName ? ` extends ${parentClassName}` : ""
+  } {
   ${
     parentClassName
       ? ""
       : `////////////////////////////////////////////////////////////////////////
   // ENV Area
   static ${ENV_NAME} =
-    (${ENV_ORDER.map((key) => `process.env.${key}`).join(" ?? \n\t\t\t")}) as string;
+    (${ENV_ORDER.map((key) => `process.env.${key}`).join(
+      " ?? \n\t\t\t"
+    )}) as string;
   static IS_DEV = ([${devEnvs
     .map((word) => `"${word}"`)
     .join(",")}].includes(\n\t\t\t\t\t${classEnv}?.toLowerCase())) as boolean;
