@@ -22,6 +22,7 @@
     "envIgnore": "@env-ignore",
     "envIgnoreStart": "@env-ignore-start",
     "envIgnoreEnd": "@env-ignore-end",
-    "speakOnEnvIgnore": true
+    "speakOnEnvIgnore": true,
+    "transpileOutDir" : "./_ENV"
   }
 }

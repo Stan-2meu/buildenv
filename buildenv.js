@@ -3,6 +3,8 @@ const fs = require("fs");
 const path = require("path");
 const findup = require("findup-sync");
 
+const inputArgs = process.argv.slice(2).map((arg) => arg.toLowerCase());
+
 /// /////////////////////////////////////////////////////////////////////
 // 설명 - 하단의 Settings 부분을 수정한다. 이 스크립트는 npm run buildenv시에만 실행된다.
 //
@@ -77,6 +79,7 @@ const {
   envIgnoreStart,
   envIgnoreEnd,
   speakOnEnvIgnore,
+  transpileOutDir
 } = options;
 
 const publicFilePath = path.join(publicFileDirPath, publicFileName + ".ts");
@@ -377,4 +380,16 @@ function buildInitMethod(keys, className) {
       }
       ${is_init} = true;
   `;
+}
+
+
+/// /////////////////////////////////////////////////////////////////////
+// Transpile
+
+if(inputArgs.includes("transpile")) {
+  console.log("Trasnpile to JS start")
+  const { execSync } = require("child_process");
+  const sourceFile = `./${privateFilePath}`;
+  execSync(`npx tsc ${sourceFile} --outDir ${transpileOutDir}`);
+  console.log("Trasnpile to JS complete")
 }
